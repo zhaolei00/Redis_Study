@@ -1,0 +1,4 @@
+### 1. 慢日志
+        处理命令的慢，不包括RTT(网络)。
+        slowlog-log-slower-than 10000  每个命令大概执行1微秒。
+        slowlog-max-len 128 建议超过1千
