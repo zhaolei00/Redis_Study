@@ -6228,50 +6228,14 @@ int main(int argc, char **argv) {
     int j;
     char config_from_stdin = 0;
 
-#ifdef REDIS_TEST
-    if (argc >= 3 && !strcasecmp(argv[1], "test")) {
-        int accurate = 0;
-        for (j = 3; j < argc; j++) {
-            if (!strcasecmp(argv[j], "--accurate")) {
-                accurate = 1;
-            }
-        }
-
-        if (!strcasecmp(argv[2], "all")) {
-            int numtests = sizeof(redisTests)/sizeof(struct redisTest);
-            for (j = 0; j < numtests; j++) {
-                redisTests[j].failed = (redisTests[j].proc(argc,argv,accurate) != 0);
-            }
-
-            /* Report tests result */
-            int failed_num = 0;
-            for (j = 0; j < numtests; j++) {
-                if (redisTests[j].failed) {
-                    failed_num++;
-                    printf("[failed] Test - %s\n", redisTests[j].name);
-                } else {
-                    printf("[ok] Test - %s\n", redisTests[j].name);
-                }
-            }
-
-            printf("%d tests, %d passed, %d failed\n", numtests,
-                   numtests-failed_num, failed_num);
-
-            return failed_num == 0 ? 0 : 1;
-        } else {
-            redisTestProc *proc = getTestProcByName(argv[2]);
-            if (!proc) return -1; /* test not found */
-            return proc(argc,argv,accurate);
-        }
-
-        return 0;
-    }
-#endif
-
     /* We need to initialize our libraries, and the server configuration. */
 #ifdef INIT_SETPROCTITLE_REPLACEMENT
     spt_init(argc, argv);
 #endif
+    for(int i = 0; i < argc; i++) {
+        char* a = argv[i];
+        printf("argv[%d] = %s\n", i, a);
+    }
     setlocale(LC_COLLATE,"");
     tzset(); /* Populates 'timezone' global. */
     zmalloc_set_oom_handler(redisOutOfMemoryHandler);
