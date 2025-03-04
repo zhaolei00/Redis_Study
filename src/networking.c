@@ -3816,6 +3816,7 @@ int handleClientsWithPendingReadsUsingThreads(void) {
         listDelNode(server.clients_pending_read,ln);
 
         serverAssert(!(c->flags & CLIENT_BLOCKED));
+        // 真正执行命令的入口。
         if (processPendingCommandsAndResetClient(c) == C_ERR) {
             /* If the client is no longer valid, we avoid
              * processing the client later. So we just go
@@ -3823,6 +3824,7 @@ int handleClientsWithPendingReadsUsingThreads(void) {
             continue;
         }
 
+        // 为什么这里要调用这个方法，不太理解?
         processInputBuffer(c);
 
         /* We may have pending replies if a thread readQueryFromClient() produced
