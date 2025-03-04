@@ -108,6 +108,12 @@ static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
     }
 }
 
+// int epoll_wait(int epfd, struct epoll_event * events, int maxevents, int timeout); 
+// 其中：
+//      epfd ：是由epoll_create()产生的epoll专用的文件描述符。
+//      events ：用于回传代处理事件的数组。
+//      maxevents ：告之内核这个events有多大(数组成员的个数)。
+//      timeout ：等待I/O事件发生的超时值（以毫秒为单位）。 0立即返回 -1一直等待 
 static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
     aeApiState *state = eventLoop->apidata;
     int retval, numevents = 0;

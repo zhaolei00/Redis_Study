@@ -245,6 +245,7 @@ int aeDeleteTimeEvent(aeEventLoop *eventLoop, long long id)
  *    Much better but still insertion or deletion of timers is O(N).
  * 2) Use a skiplist to have this operation as O(1) and insertion as O(log(N)).
  */
+// 找到最早执行的时间事件，现在时间 > 当时执行时间 返回0，否则返回差多少us执行。
 static int64_t usUntilEarliestTimer(aeEventLoop *eventLoop) {
     aeTimeEvent *te = eventLoop->timeEventHead;
     if (te == NULL) return -1;
@@ -346,15 +347,12 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 {
     int processed = 0, numevents;
 
-    /* Nothing to do? return ASAP */
+    // 没有事情可做，快速返回
     if (!(flags & AE_TIME_EVENTS) && !(flags & AE_FILE_EVENTS)) return 0;
 
-    /* Note that we want to call select() even if there are no
-     * file events to process as long as we want to process time
-     * events, in order to sleep until the next time event is ready
-     * to fire. */
-    if (eventLoop->maxfd != -1 ||
-        ((flags & AE_TIME_EVENTS) && !(flags & AE_DONT_WAIT))) {
+    // 请注意，只要我们想处理时间事件，即使没有要处理的文件事件，我们也要调用select（），以便休眠，直到下一次事件准备好触发。
+    // 有注册的监听事件 或 有时间事件且AE无等待标记 执行此过程。
+    if (eventLoop->maxfd != -1 || ((flags & AE_TIME_EVENTS) && !(flags & AE_DONT_WAIT))) {
         int j;
         struct timeval tv, *tvp;
         int64_t usUntilTimer = -1;
@@ -384,14 +382,14 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             tvp = &tv;
         }
 
+        // 前置处理器
         if (eventLoop->beforesleep != NULL && flags & AE_CALL_BEFORE_SLEEP)
             eventLoop->beforesleep(eventLoop);
 
-        /* Call the multiplexing API, will return only on timeout or when
-         * some event fires. */
+        // 通过多路复用获取触发事件
         numevents = aeApiPoll(eventLoop, tvp);
 
-        /* After sleep callback. */
+        // 后置处理器
         if (eventLoop->aftersleep != NULL && flags & AE_CALL_AFTER_SLEEP)
             eventLoop->aftersleep(eventLoop);
 
@@ -449,7 +447,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             processed++;
         }
     }
-    /* Check time events */
+    // 处理时间事件
     if (flags & AE_TIME_EVENTS)
         processed += processTimeEvents(eventLoop);
 
