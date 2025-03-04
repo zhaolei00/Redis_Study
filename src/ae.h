@@ -76,6 +76,12 @@ typedef struct aeFileEvent {
     void *clientData; // 客户端数据
 } aeFileEvent;
 
+// 触发事件
+typedef struct aeFiredEvent {
+    int fd; // 文件描述符
+    int mask; // 功能位
+} aeFiredEvent;
+
 // 时间事件结构(双向链表，采用头插法)
 typedef struct aeTimeEvent {
     long long id; // 序号
@@ -88,17 +94,11 @@ typedef struct aeTimeEvent {
     int refcount; // 用于防止在递归时间事件调用中释放计时器事件?
 } aeTimeEvent;
 
-// 触发事件
-typedef struct aeFiredEvent {
-    int fd; // 文件描述符
-    int mask; // 功能位
-} aeFiredEvent;
-
 typedef struct aeEventLoop {
     int maxfd;   // 当前已经注册的最大文件描述符
     int setsize; // 文件描述符数量
-    aeFileEvent *events; /* Registered events */ // 注册的文件事件
-    aeFiredEvent *fired; /* Fired events */ // 当epoll有需要处理的事件，从epoll取出来，存到这里。
+    aeFileEvent *events; // 注册的文件事件
+    aeFiredEvent *fired; // 当epoll有需要处理的事件，从epoll取出来，存到这里。
     long long timeEventNextId; // 下次产生时间事件的序号
     aeTimeEvent *timeEventHead; // 时间事件头节点
     int stop; // 是否关闭标记
