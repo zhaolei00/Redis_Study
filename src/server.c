@@ -2648,6 +2648,9 @@ void createSharedObjects(void) {
     shared.maxstring = sdsnew("maxstring");
 }
 
+/**
+ * 初始化默认配置
+ */
 void initServerConfig(void) {
     int j;
 
@@ -5981,8 +5984,9 @@ void sendChildInfo(childInfoType info_type, size_t keys, char *pname) {
 
 void memtest(size_t megabytes, int passes);
 
-/* Returns 1 if there is --sentinel among the arguments or if
- * argv[0] contains "redis-sentinel". */
+/**
+ * 根据启动参数，判断是否为哨兵模式
+ */
 int checkForSentinelMode(int argc, char **argv) {
     int j;
 
@@ -6257,6 +6261,7 @@ int main(int argc, char **argv) {
     uint8_t hashseed[16];
     getRandomBytes(hashseed,sizeof(hashseed));
     dictSetHashFunctionSeed(hashseed);
+    // 是否为哨兵模式
     server.sentinel_mode = checkForSentinelMode(argc,argv);
     initServerConfig();
     ACLInit(); /* The ACL subsystem must be initialized ASAP because the
@@ -6274,6 +6279,7 @@ int main(int argc, char **argv) {
     /* We need to init sentinel right now as parsing the configuration file
      * in sentinel mode will have the effect of populating the sentinel
      * data structures with master nodes to monitor. */
+    // 初始化哨兵配置
     if (server.sentinel_mode) {
         initSentinelConfig();
         initSentinel();
@@ -6338,7 +6344,7 @@ int main(int argc, char **argv) {
             }
             j++;
         }
-
+        // 配置文件覆盖默认配置
         loadServerConfig(server.configfile, config_from_stdin, options);
         if (server.sentinel_mode) loadSentinelConfigFromQueue();
         sdsfree(options);
@@ -6364,6 +6370,7 @@ int main(int argc, char **argv) {
     }
 
     readOOMScoreAdj();
+    // 初始化服务
     initServer();
     if (background || server.pidfile) createPidFile();
     if (server.set_proc_title) redisSetProcTitle(NULL);

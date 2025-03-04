@@ -31,10 +31,12 @@
 
 #include <sys/epoll.h>
 
+// 保存epoll的文件描述符
 typedef struct aeApiState {
-    int epfd;
+    int epfd; // 根据epoll_create(int size) 系统函数返回的文件描述符。用来epoll请求用的。
     struct epoll_event *events;
 } aeApiState;
+
 
 static int aeApiCreate(aeEventLoop *eventLoop) {
     aeApiState *state = zmalloc(sizeof(aeApiState));

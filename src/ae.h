@@ -68,25 +68,24 @@ typedef int aeTimeProc(struct aeEventLoop *eventLoop, long long id, void *client
 typedef void aeEventFinalizerProc(struct aeEventLoop *eventLoop, void *clientData);
 typedef void aeBeforeSleepProc(struct aeEventLoop *eventLoop);
 
-/* File event structure */
+// 文件事件结构
 typedef struct aeFileEvent {
-    int mask; /* one of AE_(READABLE|WRITABLE|BARRIER) */
-    aeFileProc *rfileProc;
-    aeFileProc *wfileProc;
-    void *clientData;
+    int mask; /* one of AE_(READABLE|WRITABLE|BARRIER) */ // 标记是什么类型的事件
+    aeFileProc *rfileProc; // 读事件处理函数
+    aeFileProc *wfileProc; // 写事件处理函数
+    void *clientData; // 客户端数据
 } aeFileEvent;
 
-/* Time event structure */
+// 时间事件结构(双向链表，采用头插法)
 typedef struct aeTimeEvent {
-    long long id; /* time event identifier. */
-    monotime when;
-    aeTimeProc *timeProc;
-    aeEventFinalizerProc *finalizerProc;
-    void *clientData;
-    struct aeTimeEvent *prev;
-    struct aeTimeEvent *next;
-    int refcount; /* refcount to prevent timer events from being
-  		   * freed in recursive time event calls. */
+    long long id; // 序号
+    monotime when; // 最后一次处理的时间，单位: 微秒
+    aeTimeProc *timeProc; // 事件处理函数 server.c中serverCron()方法
+    aeEventFinalizerProc *finalizerProc; // 终结处理函数，创建时间事件时为空。
+    void *clientData; // 客户端数据，创建时间事件时为空。
+    struct aeTimeEvent *prev; // 双向链表
+    struct aeTimeEvent *next; // 双向链表
+    int refcount; // 用于防止在递归时间事件调用中释放计时器事件?
 } aeTimeEvent;
 
 /* A fired event */
@@ -95,18 +94,17 @@ typedef struct aeFiredEvent {
     int mask;
 } aeFiredEvent;
 
-/* State of an event based program */
 typedef struct aeEventLoop {
-    int maxfd;   /* highest file descriptor currently registered */
-    int setsize; /* max number of file descriptors tracked */
-    long long timeEventNextId;
-    aeFileEvent *events; /* Registered events */
+    int maxfd;   // 当前已经注册的最大文件描述符
+    int setsize; // 文件描述符数量
+    aeFileEvent *events; /* Registered events */ // 注册的文件事件
     aeFiredEvent *fired; /* Fired events */
-    aeTimeEvent *timeEventHead;
-    int stop;
-    void *apidata; /* This is used for polling API specific data */
-    aeBeforeSleepProc *beforesleep;
-    aeBeforeSleepProc *aftersleep;
+    long long timeEventNextId; // 下次产生时间事件的序号
+    aeTimeEvent *timeEventHead; // 时间事件头节点
+    int stop; // 是否关闭标记
+    void *apidata; // 特殊数据，类似Object。apidata是aeApiState，保存epoll的文件描述符。
+    aeBeforeSleepProc *beforesleep; // server.c 的beforeSleep()方法
+    aeBeforeSleepProc *aftersleep; // server.c 的afterSleep()方法
     int flags;
 } aeEventLoop;
 
