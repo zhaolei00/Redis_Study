@@ -75,8 +75,8 @@ double R_Zero, R_PosInf, R_NegInf, R_Nan;
 
 /*================================= Globals ================================= */
 
-/* Global vars */
-struct redisServer server; /* Server global state */
+// 服务器结构, 玩的就是这个结构。有个指针，能玩转整个内存。
+struct redisServer server;
 
 /* Our command table.
  *
@@ -192,6 +192,7 @@ struct redisServer server; /* Server global state */
  *    TYPE, EXPIRE*, PEXPIRE*, TTL, PTTL, ...
  */
 
+// 命令函数
 struct redisCommand redisCommandTable[] = {
     {"module",moduleCommand,-2,
      "admin no-script",
