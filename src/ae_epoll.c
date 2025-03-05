@@ -29,6 +29,7 @@ static int aeApiCreate(aeEventLoop *eventLoop) {
     return 0;
 }
 
+// 扩容或缩容
 static int aeApiResize(aeEventLoop *eventLoop, int setsize) {
     aeApiState *state = eventLoop->apidata;
 
@@ -36,6 +37,7 @@ static int aeApiResize(aeEventLoop *eventLoop, int setsize) {
     return 0;
 }
 
+// 释放 ae
 static void aeApiFree(aeEventLoop *eventLoop) {
     aeApiState *state = eventLoop->apidata;
 
