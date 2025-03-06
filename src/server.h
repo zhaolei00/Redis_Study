@@ -683,9 +683,8 @@ typedef struct RedisModuleDigest {
 typedef struct redisObject {
     unsigned type:4; // 类型
     unsigned encoding:4; // 底层数据结构
-    unsigned lru:LRU_BITS; /* LRU time (relative to global lru_clock) or
-                            * LFU data (least significant 8 bits frequency
-                            * and most significant 16 bits access time). 待定 */
+    unsigned lru:LRU_BITS; /* LFU 高16位保存时间，单位:分钟。低8位保存频率。
+                              LRU 保存服务器的时钟值 */
     int refcount; // 引用数量
     void *ptr; // 数据结构的指针
 } robj;
