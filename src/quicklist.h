@@ -33,27 +33,20 @@
 #ifndef __QUICKLIST_H__
 #define __QUICKLIST_H__
 
-/* Node, quicklist, and Iterator are the only data structures used currently. */
+// Node、quicklist和Iterator是目前唯一使用的数据结构。
 
-/* quicklistNode is a 32 byte struct describing a ziplist for a quicklist.
- * We use bit fields keep the quicklistNode at 32 bytes.
- * count: 16 bits, max 65536 (max zl bytes is 65k, so max count actually < 32k).
- * encoding: 2 bits, RAW=1, LZF=2.
- * container: 2 bits, NONE=1, ZIPLIST=2.
- * recompress: 1 bit, bool, true if node is temporary decompressed for usage.
- * attempted_compress: 1 bit, boolean, used for verifying during testing.
- * extra: 10 bits, free for future use; pads out the remainder of 32 bits */
+// quicklistNode是一个32字节的结构体，用于描述快速列表的压缩列表。
 typedef struct quicklistNode {
-    struct quicklistNode *prev;
-    struct quicklistNode *next;
+    struct quicklistNode *prev; // 前驱节点
+    struct quicklistNode *next; // 后继节点
     unsigned char *zl;
-    unsigned int sz;             /* ziplist size in bytes */
-    unsigned int count : 16;     /* count of items in ziplist */
+    unsigned int sz;             // 压缩列表字节总数
+    unsigned int count : 16;     // 压缩列表条目总数
     unsigned int encoding : 2;   /* RAW==1 or LZF==2 */
     unsigned int container : 2;  /* NONE==1 or ZIPLIST==2 */
-    unsigned int recompress : 1; /* was this node previous compressed? */
-    unsigned int attempted_compress : 1; /* node can't compress; too small */
-    unsigned int extra : 10; /* more bits to steal for future usage */
+    unsigned int recompress : 1; // 重新压缩：1位，bool，如果节点被临时解压缩以供使用，则为true。此节点以前压缩过吗？
+    unsigned int attempted_compress : 1; /* node can't compress; too small */ // 1位，布尔值，用于测试期间的验证。
+    unsigned int extra : 10; /* more bits to steal for future usage */ // 10位，未来免费使用；填充掉剩余的32位
 } quicklistNode;
 
 /* quicklistLZF is a 4+N byte struct holding 'sz' followed by 'compressed'.
@@ -66,14 +59,7 @@ typedef struct quicklistLZF {
     char compressed[];
 } quicklistLZF;
 
-/* Bookmarks are padded with realloc at the end of of the quicklist struct.
- * They should only be used for very big lists if thousands of nodes were the
- * excess memory usage is negligible, and there's a real need to iterate on them
- * in portions.
- * When not used, they don't add any memory overhead, but when used and then
- * deleted, some overhead remains (to avoid resonance).
- * The number of bookmarks used should be kept to minimum since it also adds
- * overhead on node deletion (searching for a bookmark to update). */
+// 当quicklist的节点数非常多时，用书签非常有用。
 typedef struct quicklistBookmark {
     quicklistNode *node;
     char *name;
@@ -94,23 +80,15 @@ typedef struct quicklistBookmark {
 #   error unknown arch bits count
 #endif
 
-/* quicklist is a 40 byte struct (on 64-bit systems) describing a quicklist.
- * 'count' is the number of total entries.
- * 'len' is the number of quicklist nodes.
- * 'compress' is: 0 if compression disabled, otherwise it's the number
- *                of quicklistNodes to leave uncompressed at ends of quicklist.
- * 'fill' is the user-requested (or default) fill factor.
- * 'bookmakrs are an optional feature that is used by realloc this struct,
- *      so that they don't consume memory when not used. */
 typedef struct quicklist {
-    quicklistNode *head;
-    quicklistNode *tail;
-    unsigned long count;        /* total count of all entries in all ziplists */
-    unsigned long len;          /* number of quicklistNodes */
-    int fill : QL_FILL_BITS;              /* fill factor for individual nodes */
-    unsigned int compress : QL_COMP_BITS; /* depth of end nodes not to compress;0=off */
-    unsigned int bookmark_count: QL_BM_BITS;
-    quicklistBookmark bookmarks[];
+    quicklistNode *head; // 头节点
+    quicklistNode *tail; // 尾节点
+    unsigned long count; // 所有条目数
+    unsigned long len;  // 节点数
+    int fill : QL_FILL_BITS; // 单个节点的填充因子
+    unsigned int compress : QL_COMP_BITS; // 如果压缩已禁用，则'compress'为：0，否则它是在快速列表末尾保持未压缩的快速列表节点数。
+    unsigned int bookmark_count: QL_BM_BITS; // 书签数量
+    quicklistBookmark bookmarks[]; // 书签
 } quicklist;
 
 typedef struct quicklistIter {
@@ -197,10 +175,6 @@ int quicklistBookmarkCreate(quicklist **ql_ref, const char *name, quicklistNode 
 int quicklistBookmarkDelete(quicklist *ql, const char *name);
 quicklistNode *quicklistBookmarkFind(quicklist *ql, const char *name);
 void quicklistBookmarksClear(quicklist *ql);
-
-#ifdef REDIS_TEST
-int quicklistTest(int argc, char *argv[], int accurate);
-#endif
 
 /* Directions for iterators */
 #define AL_START_HEAD 0
