@@ -96,13 +96,13 @@
  * |11111110| - 2 bytes
  *      整数编码为8位有符号（1字节）。
  * |1111xxxx| - (with xxxx between 0001 and 1101) immediate 4 bit integer.
- *      Unsigned integer from 0 to 12. The encoded value is actually from
- *      1 to 13 because 0000 and 1111 can not be used, so 1 should be
- *      subtracted from the encoded 4 bit value to obtain the right value.
+ *      0到12之间的无符号整数。0000 代表3个字节的有符号，1110代表1个字节的有符号，1111代表结尾。
+ *      所以用1到13代表0到12位之间的无符号整数。获得实际值时减1。
  * |11111111| - End of ziplist special entry. 表示ZipList的结尾。
  *
  * Like for the ziplist header, all the integers are represented in little
  * endian byte order, even when this code is compiled in big endian systems.
+ * 与ziplist标头一样，所有整数都以小字节序表示，即使此代码是在大端序系统中编译的。
  * "大端序"和"小端序"是啥？主要是编码里位数代表的数字怎么组织的。
  * =================== 本条目编码规则结束 ===================
  *
