@@ -33,9 +33,9 @@
 #include <stdint.h>
 
 typedef struct intset {
-    uint32_t encoding;
-    uint32_t length;
-    int8_t contents[];
+    uint32_t encoding; // 编码，多少字节代表一个数
+    uint32_t length; // 存储的数量
+    int8_t contents[]; // 所有数的字节序  是有序的，在查找时使用了二分。
 } intset;
 
 intset *intsetNew(void);
