@@ -41,8 +41,7 @@
  * <zlbytes> <zltail> <zllen> <entry> <entry> ... <entry> <zlend>
  *
  * <uint32_t zlbytes>是一个无符号整数，用于保存ziplist占用的字节数，包括zlbytes字段本身的四个字节。需要存储此值，以便能够调整整个结构的大小，而无需先遍历它。
- * <uint32_t zltail>是列表中最后一个条目的偏移量。这允许在列表的远端进行弹出操作，而不需要完全遍历。
- *                  具体是指结束条目，还是前一个条目，需要确认?
+ * <uint32_t zltail>是列表中最后一个有效条目(结束条目的前一个)的偏移量。这允许在列表的远端进行弹出操作，而不需要完全遍历。
  * <uint16_t zllen>是条目数。当有超过2^16-2个条目时，此值设置为2^16-1，我们需要遍历整个列表以了解它包含多少个条目。
  * <uint8_t-zlend>是一个特殊的条目，表示压缩列表的末尾。编码为等于255的单个字节。没有其他正常条目以设置为255的字节开头。
  *
@@ -64,10 +63,7 @@
  * 实际上条目的编码方式如下(上一个条目小于254):
  * <prevlen from 0 to 253> <encoding> <entry>
  *
- * Or alternatively if the previous entry length is greater than 253 bytes
- * the following encoding is used:
- * 大于等于254字节时, 使用下面的编码:
- *
+ * 大于253字节时, 使用下面的编码:
  * 0xFE <4 bytes unsigned little endian prevlen> <encoding> <entry>
  * 
  * =================== 上一个条目长度编码规则结束 ===================
@@ -104,45 +100,12 @@
  * =================== 本条目编码规则结束 ===================
  *
  * 示例:
- *
- * The following is a ziplist containing the two elements representing
- * the strings "2" and "5". It is composed of 15 bytes, that we visually
- * split into sections:
- *
+ * 向压缩列表增加 "2" 和 "5" 字符后的 字节数组表示。记住是以小端序方式组织的。
  *  [0f 00 00 00] [0c 00 00 00] [02 00] [00 f3] [02 f6] [ff]
  *        |             |          |       |       |     |
  *     zlbytes        zltail    entries   "2"     "5"   end
- *
- * The first 4 bytes represent the number 15, that is the number of bytes
- * the whole ziplist is composed of. The second 4 bytes are the offset
- * at which the last ziplist entry is found, that is 12, in fact the
- * last entry, that is "5", is at offset 12 inside the ziplist.
- * The next 16 bit integer represents the number of elements inside the
- * ziplist, its value is 2 since there are just two elements inside.
- * Finally "00 f3" is the first entry representing the number 2. It is
- * composed of the previous entry length, which is zero because this is
- * our first entry, and the byte F3 which corresponds to the encoding
- * |1111xxxx| with xxxx between 0001 and 1101. We need to remove the "F"
- * higher order bits 1111, and subtract 1 from the "3", so the entry value
- * is "2". The next entry has a prevlen of 02, since the first entry is
- * composed of exactly two bytes. The entry itself, F6, is encoded exactly
- * like the first entry, and 6-1 = 5, so the value of the entry is 5.
- * Finally the special entry FF signals the end of the ziplist.
- *
- * Adding another element to the above string with the value "Hello World"
- * allows us to show how the ziplist encodes small strings. We'll just show
- * the hex dump of the entry itself. Imagine the bytes as following the
- * entry that stores "5" in the ziplist above:
- *
+ * 再增加 "Hello World" 字符串后，增加部分的字节数组表示。
  * [02] [0b] [48 65 6c 6c 6f 20 57 6f 72 6c 64]
- *
- * The first byte, 02, is the length of the previous entry. The next
- * byte represents the encoding in the pattern |00pppppp| that means
- * that the entry is a string of length <pppppp>, so 0B means that
- * an 11 bytes string follows. From the third byte (48) to the last (64)
- * there are just the ASCII characters for "Hello World".
- *
- * ----------------------------------------------------------------------------
  */
 
 #include <stdio.h>
