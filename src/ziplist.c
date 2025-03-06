@@ -1,115 +1,112 @@
-/* The ziplist is a specially encoded dually linked list that is designed
- * to be very memory efficient. It stores both strings and integer values,
- * where integers are encoded as actual integers instead of a series of
- * characters. It allows push and pop operations on either side of the list
- * in O(1) time. However, because every operation requires a reallocation of
- * the memory used by the ziplist, the actual complexity is related to the
- * amount of memory used by the ziplist.
+/*
+ * Copyright (c) 2009-2012, Pieter Noordhuis <pcnoordhuis at gmail dot com>
+ * Copyright (c) 2009-2017, Salvatore Sanfilippo <antirez at gmail dot com>
+ * Copyright (c) 2020, Redis Labs, Inc
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *   * Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *   * Neither the name of Redis nor the names of its contributors may be used
+ *     to endorse or promote products derived from this software without
+ *     specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+/* 
+ * ziplist是一个特殊编码的双链表，旨在提高内存效率。
+ * 它存储字符串和整数值，其中整数被编码为实际整数，而不是一系列字符。
+ * 它允许在O（1）时间内对列表的任一侧进行推送和弹出操作。
+ * 然而，由于每个操作都需要重新分配ziplist使用的内存，因此实际的复杂性与ziplist所使用的内存量有关。
  *
  * ----------------------------------------------------------------------------
  *
- * ZIPLIST OVERALL LAYOUT
+ * ZIPLIST 总体布局
  * ======================
  *
- * The general layout of the ziplist is as follows:
- *
+ * 布局:
  * <zlbytes> <zltail> <zllen> <entry> <entry> ... <entry> <zlend>
  *
- * NOTE: all fields are stored in little endian, if not specified otherwise.
+ * <uint32_t zlbytes>是一个无符号整数，用于保存ziplist占用的字节数，包括zlbytes字段本身的四个字节。需要存储此值，以便能够调整整个结构的大小，而无需先遍历它。
+ * <uint32_t zltail>是列表中最后一个条目的偏移量。这允许在列表的远端进行弹出操作，而不需要完全遍历。
+ * <uint16_t zllen>是条目数。当有超过2^16-2个条目时，此值设置为2^16-1，我们需要遍历整个列表以了解它包含多少个条目。
+ * <uint8_t-zlend>是一个特殊的条目，表示压缩列表的末尾。编码为等于255的单个字节。没有其他正常条目以设置为255的字节开头。
  *
- * <uint32_t zlbytes> is an unsigned integer to hold the number of bytes that
- * the ziplist occupies, including the four bytes of the zlbytes field itself.
- * This value needs to be stored to be able to resize the entire structure
- * without the need to traverse it first.
- *
- * <uint32_t zltail> is the offset to the last entry in the list. This allows
- * a pop operation on the far side of the list without the need for full
- * traversal.
- *
- * <uint16_t zllen> is the number of entries. When there are more than
- * 2^16-2 entries, this value is set to 2^16-1 and we need to traverse the
- * entire list to know how many items it holds.
- *
- * <uint8_t zlend> is a special entry representing the end of the ziplist.
- * Is encoded as a single byte equal to 255. No other normal entry starts
- * with a byte set to the value of 255.
- *
- * ZIPLIST ENTRIES
- * ===============
- *
- * Every entry in the ziplist is prefixed by metadata that contains two pieces
- * of information. First, the length of the previous entry is stored to be
- * able to traverse the list from back to front. Second, the entry encoding is
- * provided. It represents the entry type, integer or string, and in the case
- * of strings it also represents the length of the string payload.
- * So a complete entry is stored like this:
- *
+ * 压缩列表条目格式:
+ * ziplist中的每个条目都以包含两条信息的元数据作为前缀。
+ * 首先，存储前一个条目的长度，以便能够从后到前遍历列表。
+ * 其次，提供条目编码。它表示条目类型，整数或字符串，如果是字符串，它还表示字符串有效载荷的长度。所以一个完整的条目是这样存储的：
  * <prevlen> <encoding> <entry-data>
  *
- * Sometimes the encoding represents the entry itself, like for small integers
- * as we'll see later. In such a case the <entry-data> part is missing, and we
- * could have just:
- *
+ * 有时编码表示条目本身，就像我们稍后将看到的小整数一样。在这种情况下，<entry data>部分缺失，只有:
  * <prevlen> <encoding>
  *
- * The length of the previous entry, <prevlen>, is encoded in the following way:
- * If this length is smaller than 254 bytes, it will only consume a single
- * byte representing the length as an unsinged 8 bit integer. When the length
- * is greater than or equal to 254, it will consume 5 bytes. The first byte is
- * set to 254 (FE) to indicate a larger value is following. The remaining 4
- * bytes take the length of the previous entry as value.
+ * =================== 上一个条目长度编码规则开始 ===================
+ * 
+ * 前一个条目<prevlen>的长度按以下方式编码：如果此长度小于254个字节，则它只会消耗一个字节，将该长度表示为一个无符号的8位整数。
+ * 当长度大于或等于254时，它将消耗5个字节。第一个字节被设置为254（FE），以表示后面有一个更大的值。
+ * 剩余的4个字节将前一个条目的长度作为值。
  *
- * So practically an entry is encoded in the following way:
- *
+ * 实际上条目的编码方式如下(上一个条目小于254):
  * <prevlen from 0 to 253> <encoding> <entry>
  *
  * Or alternatively if the previous entry length is greater than 253 bytes
  * the following encoding is used:
+ * 大于等于254字节时, 使用下面的编码:
  *
  * 0xFE <4 bytes unsigned little endian prevlen> <encoding> <entry>
+ * 
+ * =================== 上一个条目长度编码规则结束 ===================
+ * 
+ * =================== 本条目编码规则开始 ===================
+ * 第一个字节的前两位可以确定是字符串还是整数。
+ *      字符串: 后面的二进制位表示字符串长度。
+ *      整数: 第3、4位表示，条目是否存在编码里。00、01、10存储在编码里。
+ *           11
  *
- * The encoding field of the entry depends on the content of the
- * entry. When the entry is a string, the first 2 bits of the encoding first
- * byte will hold the type of encoding used to store the length of the string,
- * followed by the actual length of the string. When the entry is an integer
- * the first 2 bits are both set to 1. The following 2 bits are used to specify
- * what kind of integer will be stored after this header. An overview of the
- * different types and encodings is as follows. The first byte is always enough
- * to determine the kind of entry.
- *
- * |00pppppp| - 1 byte
- *      String value with length less than or equal to 63 bytes (6 bits).
- *      "pppppp" represents the unsigned 6 bit length.
+ * |00pppppp| - 1 byte 
+ *      长度小于等于63, 6位表示无符号整数。
  * |01pppppp|qqqqqqqq| - 2 bytes
- *      String value with length less than or equal to 16383 bytes (14 bits).
- *      IMPORTANT: The 14 bit number is stored in big endian.
+ *      长度小于等于16383, 14位表示无符号整数。这个14位是大端序。
  * |10000000|qqqqqqqq|rrrrrrrr|ssssssss|tttttttt| - 5 bytes
- *      String value with length greater than or equal to 16384 bytes.
- *      Only the 4 bytes following the first byte represents the length
- *      up to 2^32-1. The 6 lower bits of the first byte are not used and
- *      are set to zero.
- *      IMPORTANT: The 32 bit number is stored in big endian.
+ *      长度大于等于16384，最后面的32位表示无符号整数。第一个字节的后6位未使用。
  * |11000000| - 3 bytes
- *      Integer encoded as int16_t (2 bytes).
+ *      整数，存储在编码的后面2个字节里(int16_t)。
  * |11010000| - 5 bytes
- *      Integer encoded as int32_t (4 bytes).
+ *      整数，存储在编码的后面4个字节里(int32_t)。
  * |11100000| - 9 bytes
- *      Integer encoded as int64_t (8 bytes).
+ *      整数，存储在编码的后面8个字节里(int64_t)。
  * |11110000| - 4 bytes
- *      Integer encoded as 24 bit signed (3 bytes).
+ *      整数编码为24位有符号（3个字节）。
  * |11111110| - 2 bytes
- *      Integer encoded as 8 bit signed (1 byte).
+ *      整数编码为8位有符号（1字节）。
  * |1111xxxx| - (with xxxx between 0001 and 1101) immediate 4 bit integer.
  *      Unsigned integer from 0 to 12. The encoded value is actually from
  *      1 to 13 because 0000 and 1111 can not be used, so 1 should be
  *      subtracted from the encoded 4 bit value to obtain the right value.
- * |11111111| - End of ziplist special entry.
+ * |11111111| - End of ziplist special entry. 表示ZipList的结尾。
  *
  * Like for the ziplist header, all the integers are represented in little
  * endian byte order, even when this code is compiled in big endian systems.
+ * "大端序"和"小端序"是啥？主要是编码里位数代表的数字怎么组织的。
+ * =================== 本条目编码规则结束 ===================
  *
- * EXAMPLES OF ACTUAL ZIPLISTS
- * ===========================
+ * 示例:
  *
  * The following is a ziplist containing the two elements representing
  * the strings "2" and "5". It is composed of 15 bytes, that we visually
@@ -149,35 +146,6 @@
  * there are just the ASCII characters for "Hello World".
  *
  * ----------------------------------------------------------------------------
- *
- * Copyright (c) 2009-2012, Pieter Noordhuis <pcnoordhuis at gmail dot com>
- * Copyright (c) 2009-2017, Salvatore Sanfilippo <antirez at gmail dot com>
- * Copyright (c) 2020, Redis Labs, Inc
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *   * Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
- *   * Neither the name of Redis nor the names of its contributors may be used
- *     to endorse or promote products derived from this software without
- *     specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <stdio.h>
