@@ -80,6 +80,9 @@ typedef struct quicklistBookmark {
 #   error unknown arch bits count
 #endif
 
+// 快速列表结构。
+//      优势: 解决普通双向链表的空间浪费，和查询效率问题。
+//      问题: 里面的node数量、zipList的条目数量，设置多少合适呢? 这是个值得讨论的问题。
 typedef struct quicklist {
     quicklistNode *head; // 头节点
     quicklistNode *tail; // 尾节点
