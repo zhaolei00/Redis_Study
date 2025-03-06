@@ -38,15 +38,13 @@
 
 /* ===================== Creation and parsing of objects ==================== */
 
+// 创建RedisObject
 robj *createObject(int type, void *ptr) {
     robj *o = zmalloc(sizeof(*o));
     o->type = type;
     o->encoding = OBJ_ENCODING_RAW;
     o->ptr = ptr;
     o->refcount = 1;
-
-    /* Set the LRU to the current lruclock (minutes resolution), or
-     * alternatively the LFU counter. */
     if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
         o->lru = (LFUGetTimeInMinutes()<<8) | LFU_INIT_VAL;
     } else {
@@ -55,32 +53,19 @@ robj *createObject(int type, void *ptr) {
     return o;
 }
 
-/* Set a special refcount in the object to make it "shared":
- * incrRefCount and decrRefCount() will test for this special refcount
- * and will not touch the object. This way it is free to access shared
- * objects such as small integers from different threads without any
- * mutex.
- *
- * A common patter to create shared objects:
- *
- * robj *myobject = makeObjectShared(createObject(...));
- *
- */
+// 创建Redis的共享对象
 robj *makeObjectShared(robj *o) {
     serverAssert(o->refcount == 1);
     o->refcount = OBJ_SHARED_REFCOUNT;
     return o;
 }
 
-/* Create a string object with encoding OBJ_ENCODING_RAW, that is a plain
- * string object where o->ptr points to a proper sds string. */
+// 创建raw编码对象
 robj *createRawStringObject(const char *ptr, size_t len) {
     return createObject(OBJ_STRING, sdsnewlen(ptr,len));
 }
 
-/* Create a string object with encoding OBJ_ENCODING_EMBSTR, that is
- * an object where the sds string is actually an unmodifiable string
- * allocated in the same chunk as the object itself. */
+// 创建embstr编码对象。robj和sds的内存是连续的。
 robj *createEmbeddedStringObject(const char *ptr, size_t len) {
     robj *o = zmalloc(sizeof(robj)+sizeof(struct sdshdr8)+len+1);
     struct sdshdr8 *sh = (void*)(o+1);
@@ -109,12 +94,8 @@ robj *createEmbeddedStringObject(const char *ptr, size_t len) {
     return o;
 }
 
-/* Create a string object with EMBSTR encoding if it is smaller than
- * OBJ_ENCODING_EMBSTR_SIZE_LIMIT, otherwise the RAW encoding is
- * used.
- *
- * The current limit of 44 is chosen so that the biggest string object
- * we allocate as EMBSTR will still fit into the 64 byte arena of jemalloc. */
+// 创建字符串对象，编码根据字符串决定。
+// 为什么是44? 因为robj大小为16B、SDS8头为3B、额外空位1B，只剩下44B。因为缓存行是64B。
 #define OBJ_ENCODING_EMBSTR_SIZE_LIMIT 44
 robj *createStringObject(const char *ptr, size_t len) {
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
@@ -124,13 +105,14 @@ robj *createStringObject(const char *ptr, size_t len) {
 }
 
 /* Same as CreateRawStringObject, can return NULL if allocation fails */
+// 创建raw编码对象
 robj *tryCreateRawStringObject(const char *ptr, size_t len) {
     sds str = sdstrynewlen(ptr,len);
     if (!str) return NULL;
     return createObject(OBJ_STRING, str);
 }
 
-/* Same as createStringObject, can return NULL if allocation fails */
+// 创建字符串对象
 robj *tryCreateStringObject(const char *ptr, size_t len) {
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
         return createEmbeddedStringObject(ptr,len);
@@ -197,14 +179,7 @@ robj *createStringObjectFromLongDouble(long double value, int humanfriendly) {
     return createStringObject(buf,len);
 }
 
-/* Duplicate a string object, with the guarantee that the returned object
- * has the same encoding as the original one.
- *
- * This function also guarantees that duplicating a small integer object
- * (or a string object that contains a representation of a small integer)
- * will always result in a fresh object that is unshared (refcount == 1).
- *
- * The resulting object always has refcount set to 1. */
+// 复制
 robj *dupStringObject(const robj *o) {
     robj *d;
 
@@ -226,6 +201,7 @@ robj *dupStringObject(const robj *o) {
     }
 }
 
+// 创建快表对象
 robj *createQuicklistObject(void) {
     quicklist *l = quicklistCreate();
     robj *o = createObject(OBJ_LIST,l);
@@ -233,6 +209,7 @@ robj *createQuicklistObject(void) {
     return o;
 }
 
+// 创建压缩列表对象
 robj *createZiplistObject(void) {
     unsigned char *zl = ziplistNew();
     robj *o = createObject(OBJ_LIST,zl);
