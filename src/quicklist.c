@@ -97,8 +97,7 @@ void _quicklistBookmarkDelete(quicklist *ql, quicklistBookmark *bm);
         (e)->sz = 0;                                                           \
     } while (0)
 
-/* Create a new quicklist.
- * Free with quicklistRelease(). */
+// 创建空的快速列表
 quicklist *quicklistCreate(void) {
     struct quicklist *quicklist;
 
@@ -113,6 +112,7 @@ quicklist *quicklistCreate(void) {
 }
 
 #define COMPRESS_MAX ((1 << QL_COMP_BITS)-1)
+// 设置压缩
 void quicklistSetCompressDepth(quicklist *quicklist, int compress) {
     if (compress > COMPRESS_MAX) {
         compress = COMPRESS_MAX;
@@ -123,6 +123,7 @@ void quicklistSetCompressDepth(quicklist *quicklist, int compress) {
 }
 
 #define FILL_MAX ((1 << (QL_FILL_BITS-1))-1)
+// 设置压缩列表填充因子
 void quicklistSetFill(quicklist *quicklist, int fill) {
     if (fill > FILL_MAX) {
         fill = FILL_MAX;
@@ -137,13 +138,14 @@ void quicklistSetOptions(quicklist *quicklist, int fill, int depth) {
     quicklistSetCompressDepth(quicklist, depth);
 }
 
-/* Create a new quicklist with some default parameters. */
+// 带参数创建快速列表
 quicklist *quicklistNew(int fill, int compress) {
     quicklist *quicklist = quicklistCreate();
     quicklistSetOptions(quicklist, fill, compress);
     return quicklist;
 }
 
+// 创建node
 REDIS_STATIC quicklistNode *quicklistCreateNode(void) {
     quicklistNode *node;
     node = zmalloc(sizeof(*node));
@@ -157,10 +159,10 @@ REDIS_STATIC quicklistNode *quicklistCreateNode(void) {
     return node;
 }
 
-/* Return cached quicklist count */
+// 所有条目数
 unsigned long quicklistCount(const quicklist *ql) { return ql->count; }
 
-/* Free entire quicklist. */
+// 释放快速列表
 void quicklistRelease(quicklist *quicklist) {
     unsigned long len;
     quicklistNode *current, *next;
@@ -182,25 +184,24 @@ void quicklistRelease(quicklist *quicklist) {
     zfree(quicklist);
 }
 
-/* Compress the ziplist in 'node' and update encoding details.
- * Returns 1 if ziplist compressed successfully.
- * Returns 0 if compression failed or if ziplist too small to compress. */
+// 压缩'node'中的压缩列表并更新编码详细信息。
+// 如果压缩成功，则返回1。
+// 如果压缩失败或压缩列表太小而无法压缩，则返回0。
 REDIS_STATIC int __quicklistCompressNode(quicklistNode *node) {
 #ifdef REDIS_TEST
     node->attempted_compress = 1;
 #endif
 
-    /* Don't bother compressing small values */
+    // 太小，不压缩
     if (node->sz < MIN_COMPRESS_BYTES)
         return 0;
 
     quicklistLZF *lzf = zmalloc(sizeof(*lzf) + node->sz);
 
-    /* Cancel if compression fails or doesn't compress small enough */
+    // 如果压缩失败或压缩不够小，则取消。
     if (((lzf->sz = lzf_compress(node->zl, node->sz, lzf->compressed,
                                  node->sz)) == 0) ||
         lzf->sz + MIN_COMPRESS_IMPROVE >= node->sz) {
-        /* lzf_compress aborts/rejects compression if value not compressable. */
         zfree(lzf);
         return 0;
     }
@@ -212,7 +213,7 @@ REDIS_STATIC int __quicklistCompressNode(quicklistNode *node) {
     return 1;
 }
 
-/* Compress only uncompressed nodes. */
+// 压缩节点
 #define quicklistCompressNode(_node)                                           \
     do {                                                                       \
         if ((_node) && (_node)->encoding == QUICKLIST_NODE_ENCODING_RAW) {     \
@@ -220,8 +221,7 @@ REDIS_STATIC int __quicklistCompressNode(quicklistNode *node) {
         }                                                                      \
     } while (0)
 
-/* Uncompress the ziplist in 'node' and update encoding details.
- * Returns 1 on successful decode, 0 on failure to decode. */
+// 解压缩
 REDIS_STATIC int __quicklistDecompressNode(quicklistNode *node) {
 #ifdef REDIS_TEST
     node->attempted_compress = 0;
@@ -240,7 +240,7 @@ REDIS_STATIC int __quicklistDecompressNode(quicklistNode *node) {
     return 1;
 }
 
-/* Decompress only compressed nodes. */
+// 解压缩
 #define quicklistDecompressNode(_node)                                         \
     do {                                                                       \
         if ((_node) && (_node)->encoding == QUICKLIST_NODE_ENCODING_LZF) {     \
@@ -248,7 +248,7 @@ REDIS_STATIC int __quicklistDecompressNode(quicklistNode *node) {
         }                                                                      \
     } while (0)
 
-/* Force node to not be immediately re-compresable */
+// 强制节点不能立即重新压缩
 #define quicklistDecompressNodeForUse(_node)                                   \
     do {                                                                       \
         if ((_node) && (_node)->encoding == QUICKLIST_NODE_ENCODING_LZF) {     \
@@ -257,21 +257,21 @@ REDIS_STATIC int __quicklistDecompressNode(quicklistNode *node) {
         }                                                                      \
     } while (0)
 
-/* Extract the raw LZF data from this quicklistNode.
- * Pointer to LZF data is assigned to '*data'.
- * Return value is the length of compressed LZF data. */
+// 返回LZF
 size_t quicklistGetLzf(const quicklistNode *node, void **data) {
     quicklistLZF *lzf = (quicklistLZF *)node->zl;
     *data = lzf->compressed;
     return lzf->sz;
 }
 
+// 是否允许压缩
 #define quicklistAllowsCompression(_ql) ((_ql)->compress != 0)
 
 /* Force 'quicklist' to meet compression guidelines set by compress depth.
  * The only way to guarantee interior nodes get compressed is to iterate
  * to our "interior" compress depth then compress the next node we find.
  * If compress depth is larger than the entire list, we return immediately. */
+// 压缩快速列表
 REDIS_STATIC void __quicklistCompress(const quicklist *quicklist,
                                       quicklistNode *node) {
     /* If length is less than our compress depth (from both sides),
@@ -1521,9 +1521,8 @@ void _quicklistBookmarkDelete(quicklist *ql, quicklistBookmark *bm) {
      * it may be re-used later (a call to realloc may NOP). */
 }
 
+// 清除书签
 void quicklistBookmarksClear(quicklist *ql) {
     while (ql->bookmark_count)
         zfree(ql->bookmarks[--ql->bookmark_count].name);
-    /* NOTE: We do not shrink (realloc) the quick list. main use case for this
-     * function is just before releasing the allocation. */
 }
