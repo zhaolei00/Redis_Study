@@ -26,53 +26,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/* String -> String Map data structure optimized for size.
- * This file implements a data structure mapping strings to other strings
- * implementing an O(n) lookup data structure designed to be very memory
- * efficient.
+/* 
+ * 字符串->针对大小优化的字符串映射数据结构。此文件实现了一个数据结构，将字符串映射到其他字符串，实现了一种O（n）查找数据结构，该结构旨在非常节省内存。
  *
- * The Redis Hash type uses this data structure for hashes composed of a small
- * number of elements, to switch to a hash table once a given number of
- * elements is reached.
+ * Redis哈希类型使用这种数据结构，用于由少量元素组成的哈希，一旦达到给定数量的元素，就切换到哈希表。
  *
- * Given that many times Redis Hashes are used to represent objects composed
- * of few fields, this is a very big win in terms of used memory.
+ * 鉴于Redis哈希多次用于表示由几个字段组成的对象，这在内存使用方面是一个非常大的胜利。
  *
  * --------------------------------------------------------------------------
  *
  * Memory layout of a zipmap, for the map "foo" => "bar", "hello" => "world":
  *
  * <zmlen><len>"foo"<len><free>"bar"<len>"hello"<len><free>"world"
+ * 
+ * <zmlen>是一个1字节的长度，用于保存zipmap的当前大小。当zipmap长度大于或等于254时，不使用此值，需要遍历zipmap以找出长度。
+ * <len>是以下字符串（键或值）的长度。长度以单个值或5字节值编码。
+ *      如果第一个字节值（作为无符号8位值）在0和253之间，则它是一个单字节长度。如果它是254，那么接下来是一个四字节的无符号整数（按主机字节顺序）。值255用于表示哈希结束。
+ * <free>是字符串后未使用的空闲字节数，这是由于修改了与键关联的值而产生的。例如，如果“foo”设置为“bar”，稍后“foo”将设置为“hi”，如果值稍后再次放大，它将有一个空闲字节可供使用，或者如果合适，甚至可以添加一个键/值对。
+ *      始终是一个无符号的8位数字，因为如果在更新操作后有多个空闲字节，zipmap将被重新分配以确保它尽可能小。
+ * 上述两个元素哈希的最简洁表示实际上是: "\x02\x03foo\x03\x00bar\x05hello\x05\x00world\xff"
  *
- * <zmlen> is 1 byte length that holds the current size of the zipmap.
- * When the zipmap length is greater than or equal to 254, this value
- * is not used and the zipmap needs to be traversed to find out the length.
- *
- * <len> is the length of the following string (key or value).
- * <len> lengths are encoded in a single value or in a 5 bytes value.
- * If the first byte value (as an unsigned 8 bit value) is between 0 and
- * 253, it's a single-byte length. If it is 254 then a four bytes unsigned
- * integer follows (in the host byte ordering). A value of 255 is used to
- * signal the end of the hash.
- *
- * <free> is the number of free unused bytes after the string, resulting
- * from modification of values associated to a key. For instance if "foo"
- * is set to "bar", and later "foo" will be set to "hi", it will have a
- * free byte to use if the value will enlarge again later, or even in
- * order to add a key/value pair if it fits.
- *
- * <free> is always an unsigned 8 bit number, because if after an
- * update operation there are more than a few free bytes, the zipmap will be
- * reallocated to make sure it is as small as possible.
- *
- * The most compact representation of the above two elements hash is actually:
- *
- * "\x02\x03foo\x03\x00bar\x05hello\x05\x00world\xff"
- *
- * Note that because keys and values are prefixed length "objects",
- * the lookup will take O(N) where N is the number of elements
- * in the zipmap and *not* the number of bytes needed to represent the zipmap.
- * This lowers the constant times considerably.
+ * 请注意，由于键和值的前缀长度为“对象”，因此查找将采用O（N），其中N是zipmap中的元素数，而不是表示zipmap所需的字节数。这大大降低了恒定时间。
  */
 
 #include <stdio.h>
