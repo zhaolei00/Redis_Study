@@ -6295,6 +6295,7 @@ int main(int argc, char **argv) {
     else if (strstr(argv[0],"redis-check-aof") != NULL)
         redis_check_aof_main(argc,argv);
 
+    // 配置参数处理
     if (argc >= 2) {
         j = 1; /* First option to parse in argv[] */
         sds options = sdsempty();
@@ -6344,9 +6345,11 @@ int main(int argc, char **argv) {
         if (server.sentinel_mode) loadSentinelConfigFromQueue();
         sdsfree(options);
     }
+    // 哨兵配置文件健壮性检查
     if (server.sentinel_mode) sentinelCheckConfigFile();
     server.supervised = redisIsSupervised(server.supervised_mode);
     int background = server.daemonize && !server.supervised;
+    // 就是fork一个子进程来代替。
     if (background) daemonize();
 
     serverLog(LL_WARNING, "oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo");

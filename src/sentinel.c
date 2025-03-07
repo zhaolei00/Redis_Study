@@ -549,17 +549,14 @@ void initSentinel(void) {
     server.sentinel_config = NULL;
 }
 
-/* This function is for checking whether sentinel config file has been set,
- * also checking whether we have write permissions. */
+// 哨兵启动配置检查, 必须有哨兵配置文件, 并且配置文可写。
 void sentinelCheckConfigFile(void) {
     if (server.configfile == NULL) {
-        serverLog(LL_WARNING,
-            "Sentinel needs config file on disk to save state. Exiting...");
+        serverLog(LL_WARNING, "Sentinel needs config file on disk to save state. Exiting...");
         exit(1);
     } else if (access(server.configfile,W_OK) == -1) {
         serverLog(LL_WARNING,
-            "Sentinel config file %s is not writable: %s. Exiting...",
-            server.configfile,strerror(errno));
+            "Sentinel config file %s is not writable: %s. Exiting...", server.configfile,strerror(errno));
         exit(1);
     }
 }

@@ -1343,7 +1343,7 @@ struct redisServer {
     int dbnum;                      /* Total number of configured DBs */
     int supervised;                 /* 1 if supervised, 0 otherwise. */
     int supervised_mode;            /* See SUPERVISED_* */
-    int daemonize;                  /* True if running as a daemon */
+    int daemonize;                  // 是否为守护进程
     int set_proc_title;             /* True if change proc title */
     char *proc_title_template;      /* Process title template format */
     clientBufferLimitsConfig client_obuf_limits[CLIENT_TYPE_OBUF_COUNT];
@@ -1510,7 +1510,7 @@ struct redisServer {
     int lfu_log_factor;             /* LFU logarithmic counter factor. */
     int lfu_decay_time;             /* LFU counter decay factor. */
     long long proto_max_bulk_len;   /* Protocol bulk length maximum size. */
-    int oom_score_adj_base;         /* Base oom_score_adj value, as observed on startup */
+    int oom_score_adj_base;         /* 启动时，oom的预计值 */
     int oom_score_adj_values[CONFIG_OOM_COUNT];   /* Linux oom_score_adj configuration */
     int oom_score_adj;                            /* If true, oom_score_adj is managed */
     int disable_thp;                              /* If true, disable THP by syscall */
