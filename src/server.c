@@ -2656,6 +2656,7 @@ void initServerConfig(void) {
     int j;
 
     updateCachedTime(1);
+    // 生成runid
     getRandomHexChars(server.runid,CONFIG_RUN_ID_SIZE);
     server.runid[CONFIG_RUN_ID_SIZE] = '\0';
     changeReplicationId();
@@ -6244,6 +6245,7 @@ int main(int argc, char **argv) {
     }
     setlocale(LC_COLLATE,"");
     tzset(); /* Populates 'timezone' global. */
+    // 设置OOM的处理函数
     zmalloc_set_oom_handler(redisOutOfMemoryHandler);
 
     /* To achieve entropy, in case of containers, their time() and getpid() can
@@ -6260,6 +6262,7 @@ int main(int argc, char **argv) {
      */
     umask(server.umask = umask(0777));
 
+    // 设置Hash种子
     uint8_t hashseed[16];
     getRandomBytes(hashseed,sizeof(hashseed));
     dictSetHashFunctionSeed(hashseed);
