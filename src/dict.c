@@ -1,9 +1,4 @@
-/* Hash Tables Implementation.
- *
- * This file implements in memory hash tables with insert/del/replace/find/
- * get-random-element operations. Hash tables will auto resize if needed
- * tables of power of two in size are used, collisions are handled by
- * chaining. See the source code for more information... :)
+/**
  *
  * Copyright (c) 2006-2012, Salvatore Sanfilippo <antirez at gmail dot com>
  * All rights reserved.
@@ -31,6 +26,11 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ */
+/**
+ * 哈希表实现
+ *
+ * 此文件通过插入/删除/替换/查找/获取随机元素操作在内存中实现哈希表。如果使用大小为2的幂的哈希表，哈希表将自动调整大小，冲突通过链接处理。有关更多信息，请参阅源代码…：）
  */
 
 #include "fmacros.h"

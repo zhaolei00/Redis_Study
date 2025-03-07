@@ -81,8 +81,8 @@ typedef struct dict {
     dictType *type;
     void *privdata;
     dictht ht[2];
-    long rehashidx; /* rehashing not in progress if rehashidx == -1 */
-    int16_t pauserehash; /* If >0 rehashing is paused (<0 indicates coding error) */
+    long rehashidx; // -1 未进行rehash，其他值代表准备rehash那个桶。
+    int16_t pauserehash; // 如果大于0，则暂停重新刷新
 } dict;
 
 /* If safe is set to 1 this is a safe iterator, that means, you can call
