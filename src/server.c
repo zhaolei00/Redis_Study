@@ -2659,15 +2659,15 @@ void initServerConfig(void) {
     // 生成runid
     getRandomHexChars(server.runid,CONFIG_RUN_ID_SIZE);
     server.runid[CONFIG_RUN_ID_SIZE] = '\0';
+    // 设置复制ID
     changeReplicationId();
     clearReplicationId2();
-    server.hz = CONFIG_DEFAULT_HZ; /* Initialize it ASAP, even if it may get
-                                      updated later after loading the config.
-                                      This value may be used before the server
-                                      is initialized. */
-    server.timezone = getTimeZone(); /* Initialized by tzset(). */
+    server.hz = CONFIG_DEFAULT_HZ;
+    // 时钟
+    server.timezone = getTimeZone();
     server.configfile = NULL;
     server.executable = NULL;
+    // 操作系统位数
     server.arch_bits = (sizeof(long) == 8) ? 64 : 32;
     server.bindaddr_count = 0;
     server.unixsocketperm = CONFIG_DEFAULT_UNIX_SOCKET_PERM;
@@ -2709,11 +2709,12 @@ void initServerConfig(void) {
 
     unsigned int lruclock = getLRUClock();
     atomicSet(server.lruclock,lruclock);
+    // 重置RDB参数
     resetServerSaveParams();
-
-    appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change */
-    appendServerSaveParams(300,100);  /* save after 5 minutes and 100 changes */
-    appendServerSaveParams(60,10000); /* save after 1 minute and 10000 changes */
+    // 设置默认RDB参数
+    appendServerSaveParams(60*60,1);
+    appendServerSaveParams(300,100);
+    appendServerSaveParams(60,10000);
 
     /* Replication related */
     server.masterauth = NULL;
@@ -2758,11 +2759,10 @@ void initServerConfig(void) {
     R_NegInf = -1.0/R_Zero;
     R_Nan = R_Zero/R_Zero;
 
-    /* Command table -- we initialize it here as it is part of the
-     * initial configuration, since command names may be changed via
-     * redis.conf using the rename-command directive. */
+    // 命令表——我们在这里初始化它，因为它是初始配置的一部分，因为可以使用rename命令或者redis.conf配置来更改命令名称。
     server.commands = dictCreate(&commandTableDictType,NULL);
     server.orig_commands = dictCreate(&commandTableDictType,NULL);
+    // 把命令解析放进去
     populateCommandTable();
     server.delCommand = lookupCommandByCString("del");
     server.multiCommand = lookupCommandByCString("multi");
@@ -2793,6 +2793,7 @@ void initServerConfig(void) {
     server.client_pause_type = CLIENT_PAUSE_OFF;
     server.client_pause_end_time = 0;   
 
+    // 初始化配置文件里的选项的默认配置
     initConfigValues();
 }
 
@@ -6268,31 +6269,27 @@ int main(int argc, char **argv) {
     dictSetHashFunctionSeed(hashseed);
     // 是否为哨兵模式
     server.sentinel_mode = checkForSentinelMode(argc,argv);
+    // 初始化默认配置
     initServerConfig();
     ACLInit(); /* The ACL subsystem must be initialized ASAP because the
                   basic networking code and client creation depends on it. */
     moduleInitModulesSystem();
     tlsInit();
 
-    /* Store the executable path and arguments in a safe place in order
-     * to be able to restart the server later. */
+    // 将可执行文件的绝对路径和参数存储在安全的地方，以便以后能够重新启动服务器。
     server.executable = getAbsolutePath(argv[0]);
     server.exec_argv = zmalloc(sizeof(char*)*(argc+1));
     server.exec_argv[argc] = NULL;
     for (j = 0; j < argc; j++) server.exec_argv[j] = zstrdup(argv[j]);
 
-    /* We need to init sentinel right now as parsing the configuration file
-     * in sentinel mode will have the effect of populating the sentinel
-     * data structures with master nodes to monitor. */
+    // 我们需要立即初始化sentinel，因为在sentinel模式下解析配置文件会产生用主节点填充sentinel数据结构以进行监视的效果。
     // 初始化哨兵配置
     if (server.sentinel_mode) {
         initSentinelConfig();
         initSentinel();
     }
 
-    /* Check if we need to start in redis-check-rdb/aof mode. We just execute
-     * the program main. However the program is part of the Redis executable
-     * so that we can easily execute an RDB check on loading errors. */
+    // RDB 或 AOF 持久化文件检查
     if (strstr(argv[0],"redis-check-rdb") != NULL)
         redis_check_rdb_main(argc,argv,NULL);
     else if (strstr(argv[0],"redis-check-aof") != NULL)
@@ -6302,7 +6299,7 @@ int main(int argc, char **argv) {
         j = 1; /* First option to parse in argv[] */
         sds options = sdsempty();
 
-        /* Handle special options --help and --version */
+        // 特殊帮助命令
         if (strcmp(argv[1], "-v") == 0 ||
             strcmp(argv[1], "--version") == 0) version();
         if (strcmp(argv[1], "--help") == 0 ||
@@ -6317,33 +6314,26 @@ int main(int argc, char **argv) {
                 exit(1);
             }
         }
-        /* Parse command line options
-         * Precedence wise, File, stdin, explicit options -- last config is the one that matters.
-         *
-         * First argument is the config file name? */
+        // 优先级: 文件、stdin、命令行，最后一个配置才是最重要的。
         if (argv[1][0] != '-') {
-            /* Replace the config file in server.exec_argv with its absolute path. */
             server.configfile = getAbsolutePath(argv[1]);
             zfree(server.exec_argv[1]);
             server.exec_argv[1] = zstrdup(server.configfile);
             j = 2; // Skip this arg when parsing options
         }
         while(j < argc) {
-            /* Either first or last argument - Should we read config from stdin? */
+            // 用 - 来进行标准输入配置，用Ctrl+D结束
             if (argv[j][0] == '-' && argv[j][1] == '\0' && (j == 1 || j == argc-1)) {
                 config_from_stdin = 1;
             }
-            /* All the other options are parsed and conceptually appended to the
-             * configuration file. For instance --port 6380 will generate the
-             * string "port 6380\n" to be parsed after the actual config file
-             * and stdin input are parsed (if they exist). */
+            // 在命令中用 -- 的配置
             else if (argv[j][0] == '-' && argv[j][1] == '-') {
-                /* Option name */
+                // key
                 if (sdslen(options)) options = sdscat(options,"\n");
                 options = sdscat(options,argv[j]+2);
                 options = sdscat(options," ");
             } else {
-                /* Option argument */
+                // val
                 options = sdscatrepr(options,argv[j],strlen(argv[j]));
                 options = sdscat(options," ");
             }

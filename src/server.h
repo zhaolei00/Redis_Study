@@ -1177,19 +1177,19 @@ struct redisServer {
     /* General */
     pid_t pid;                  /* Main process pid. */
     pthread_t main_thread_id;         /* Main thread id */
-    char *configfile;           /* Absolute config file path, or NULL */
-    char *executable;           /* Absolute executable file path. */
-    char **exec_argv;           /* Executable argv vector (copy). */
+    char *configfile;           // 启动配置文件(绝对路径)
+    char *executable;           // 启动时可执行文件的绝对路径
+    char **exec_argv;           // 启动参数
     int dynamic_hz;             /* Change hz value depending on # of clients. */
     int config_hz;              /* Configured HZ value. May be different than
                                    the actual 'hz' field value if dynamic-hz
                                    is enabled. */
     mode_t umask;               /* The umask value of the process on startup */
-    int hz;                     /* serverCron() calls frequency in hertz */
+    int hz;                     // 定时任务调用频率
     int in_fork_child;          /* indication that this is a fork child */
     redisDb *db;
-    dict *commands;             /* Command table */
-    dict *orig_commands;        /* Command table before command renaming. */
+    dict *commands;             // 命令表, 有可能进行重命名
+    dict *orig_commands;        // 命令重命名前的命令表
     aeEventLoop *el;
     rax *errors;                /* Errors table */
     redisAtomic unsigned int lruclock; /* Clock for LRU eviction */
@@ -1197,7 +1197,7 @@ struct redisServer {
     int activerehashing;        /* Incremental rehash in serverCron() */
     int active_defrag_running;  /* Active defragmentation running (holds current scan aggressiveness) */
     char *pidfile;              /* PID file path */
-    int arch_bits;              /* 32 or 64 depending on sizeof(long) */
+    int arch_bits;              // 32位还是64位操作系统
     int cronloops;              /* Number of times the cron function run */
     char runid[CONFIG_RUN_ID_SIZE+1];  // 机器的唯一ID，标准C字符串，以\0结尾。
     int sentinel_mode;          // 1 哨兵 0 redis服务
@@ -1262,7 +1262,7 @@ struct redisServer {
     off_t loading_loaded_bytes;
     time_t loading_start_time;
     off_t loading_process_events_interval_bytes;
-    /* Fast pointers to often looked up command */
+    // 经常使用的命令
     struct redisCommand *delCommand, *multiCommand, *lpushCommand,
                         *lpopCommand, *rpopCommand, *zpopminCommand,
                         *zpopmaxCommand, *sremCommand, *execCommand,
@@ -1350,7 +1350,7 @@ struct redisServer {
     int pause_cron;                 /* Don't run cron tasks (debug) */
     /* AOF persistence */
     int aof_enabled;                /* AOF configuration */
-    int aof_state;                  /* AOF_(ON|OFF|WAIT_REWRITE) */
+    int aof_state;                  // aof持久化开关 /* AOF_(ON|OFF|WAIT_REWRITE) */
     int aof_fsync;                  /* Kind of fsync() policy */
     char *aof_filename;             /* Name of the AOF file */
     int aof_no_fsync_on_rewrite;    /* Don't fsync if a rewrite is in prog. */
@@ -1438,7 +1438,7 @@ struct redisServer {
     int use_exit_on_panic;          /* Use exit() on panic and assert rather than
                                      * abort(). useful for Valgrind. */
     /* Replication (master) */
-    char replid[CONFIG_RUN_ID_SIZE+1];  /* My current replication ID. */
+    char replid[CONFIG_RUN_ID_SIZE+1];  // 复制ID
     char replid2[CONFIG_RUN_ID_SIZE+1]; /* replid inherited from master*/
     long long master_repl_offset;   /* My current replication offset */
     long long second_replid_offset; /* Accept offsets up to this for replid2. */
@@ -1541,9 +1541,9 @@ struct redisServer {
     /* List parameters */
     int list_max_ziplist_size;
     int list_compress_depth;
-    /* time cache */
+    // 时间缓存
     redisAtomic time_t unixtime; // 秒时间戳，每次定时任务采样。
-    time_t timezone;            /* Cached timezone. As set by tzset(). */
+    time_t timezone;            // 时钟，就是和东0区相差的秒数
     int daylight_active;        // 当前是否处在夏令时，夏令时定义网上查。
     mstime_t mstime;            // 毫秒时间戳
     ustime_t ustime;            // 微秒时间戳
@@ -1660,8 +1660,8 @@ struct redisCommand {
     char *name;
     redisCommandProc *proc;
     int arity;
-    char *sflags;   /* Flags as string representation, one char per flag. */
-    uint64_t flags; /* The actual flags, obtained from the 'sflags' field. */
+    char *sflags;   // 标志以字符串表示，每个标志一个字符。
+    uint64_t flags; // 命令权限标记
     /* Use a function to determine keys arguments in a command line.
      * Used for Redis Cluster redirect. */
     redisGetKeysProc *getkeys_proc;

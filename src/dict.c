@@ -104,9 +104,7 @@ static void _dictReset(dictht *ht)
 }
 
 /* Create a new hash table */
-dict *dictCreate(dictType *type,
-        void *privDataPtr)
-{
+dict *dictCreate(dictType *type, void *privDataPtr) {
     dict *d = zmalloc(sizeof(*d));
 
     _dictInit(d,type,privDataPtr);
@@ -114,9 +112,7 @@ dict *dictCreate(dictType *type,
 }
 
 /* Initialize the hash table */
-int _dictInit(dict *d, dictType *type,
-        void *privDataPtr)
-{
+int _dictInit(dict *d, dictType *type, void *privDataPtr) {
     _dictReset(&d->ht[0]);
     _dictReset(&d->ht[1]);
     d->type = type;

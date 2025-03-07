@@ -387,6 +387,7 @@ void initConfigValues() {
     }
 }
 
+// 把字符串配置加载进去
 void loadServerConfigFromString(char *config) {
     char buf[1024];
     const char *err = NULL;
@@ -404,29 +405,29 @@ void loadServerConfigFromString(char *config) {
         linenum = i+1;
         lines[i] = sdstrim(lines[i]," \t\r\n");
 
-        /* Skip comments and blank lines */
+        // 跳过注解和空行
         if (lines[i][0] == '#' || lines[i][0] == '\0') continue;
 
-        /* Split into arguments */
+        // 分割得到K V
         argv = sdssplitargs(lines[i],&argc);
         if (argv == NULL) {
             err = "Unbalanced quotes in configuration line";
             goto loaderr;
         }
 
-        /* Skip this line if the resulting command vector is empty. */
+        // 跳过
         if (argc == 0) {
             sdsfreesplitres(argv,argc);
             continue;
         }
+        // 转小写
         sdstolower(argv[0]);
 
-        /* Iterate the configs that are standard */
+        // 迭代标准配置
         int match = 0;
         for (standardConfig *config = configs; config->name != NULL; config++) {
-            if ((!strcasecmp(argv[0],config->name) ||
-                (config->alias && !strcasecmp(argv[0],config->alias))))
-            {
+            // 配置名称和别名匹配
+            if ((!strcasecmp(argv[0],config->name) || (config->alias && !strcasecmp(argv[0],config->alias)))) {
                 if (argc != 2) {
                     err = "wrong number of arguments";
                     goto loaderr;
@@ -445,7 +446,7 @@ void loadServerConfigFromString(char *config) {
             continue;
         }
 
-        /* Execute config directives */
+        // 执行配置指令
         if (!strcasecmp(argv[0],"bind") && argc >= 2) {
             int j, addresses = argc-1;
 
@@ -613,7 +614,7 @@ void loadServerConfigFromString(char *config) {
         sdsfreesplitres(argv,argc);
     }
 
-    /* Sanity checks. */
+    // 健壮性检查，即是主从又是集群。
     if (server.cluster_enabled && server.masterhost) {
         linenum = slaveof_linenum;
         i = linenum-1;
@@ -621,7 +622,7 @@ void loadServerConfigFromString(char *config) {
         goto loaderr;
     }
 
-    /* To ensure backward compatibility and work while hz is out of range */
+    // 确保 定时任务频率在 1 ~ 500 范围内
     if (server.config_hz < CONFIG_MIN_HZ) server.config_hz = CONFIG_MIN_HZ;
     if (server.config_hz > CONFIG_MAX_HZ) server.config_hz = CONFIG_MAX_HZ;
 
@@ -637,19 +638,13 @@ loaderr:
     exit(1);
 }
 
-/* Load the server configuration from the specified filename.
- * The function appends the additional configuration directives stored
- * in the 'options' string to the config file before loading.
- *
- * Both filename and options can be NULL, in such a case are considered
- * empty. This way loadServerConfig can be used to just load a file or
- * just load a string. */
+// 把各处配置，拼成SDS，并加载配置。 优先级: 配置文件->标准输入->命令行选项
 void loadServerConfig(char *filename, char config_from_stdin, char *options) {
     sds config = sdsempty();
     char buf[CONFIG_MAX_LINE+1];
     FILE *fp;
 
-    /* Load the file content */
+    // 配置文件
     if (filename) {
         if ((fp = fopen(filename,"r")) == NULL) {
             serverLog(LL_WARNING,
@@ -661,7 +656,7 @@ void loadServerConfig(char *filename, char config_from_stdin, char *options) {
             config = sdscat(config,buf);
         fclose(fp);
     }
-    /* Append content from stdin */
+    // 标准输入
     if (config_from_stdin) {
         serverLog(LL_WARNING,"Reading config from stdin");
         fp = stdin;
@@ -669,7 +664,7 @@ void loadServerConfig(char *filename, char config_from_stdin, char *options) {
             config = sdscat(config,buf);
     }
 
-    /* Append the additional options */
+    // 命令行选项
     if (options) {
         config = sdscat(config,"\n");
         config = sdscat(config,options);
