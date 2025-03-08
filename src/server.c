@@ -6372,6 +6372,7 @@ int main(int argc, char **argv) {
     initServer();
     if (background || server.pidfile) createPidFile();
     if (server.set_proc_title) redisSetProcTitle(NULL);
+    // 打印Logo
     redisAsciiArt();
     checkTcpBacklogSettings();
 
@@ -6402,11 +6403,12 @@ int main(int argc, char **argv) {
         ACLLoadUsersAtStartup();
         InitServerLast();
         loadDataFromDisk();
+        // 集群的健壮性检查
         if (server.cluster_enabled) {
+            // 在群集模式下，您不能在非0库上有数据
             if (verifyClusterConfigWithData() == C_ERR) {
                 serverLog(LL_WARNING,
-                    "You can't have keys in a DB different than DB 0 when in "
-                    "Cluster mode. Exiting.");
+                    "You can't have keys in a DB different than DB 0 when in Cluster mode. Exiting.");
                 exit(1);
             }
         }
@@ -6422,7 +6424,7 @@ int main(int argc, char **argv) {
             }
             redisCommunicateSystemd("READY=1\n");
         }
-    } else {
+    } else { // 哨兵模式下
         ACLLoadUsersAtStartup();
         InitServerLast();
         sentinelIsRunning();
@@ -6432,7 +6434,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* Warning the user about suspicious maxmemory setting. */
+    // 最大内存过小警告
     if (server.maxmemory > 0 && server.maxmemory < 1024*1024) {
         serverLog(LL_WARNING,"WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?", server.maxmemory);
     }
