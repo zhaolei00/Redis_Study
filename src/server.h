@@ -1348,7 +1348,7 @@ struct redisServer {
     char *proc_title_template;      /* Process title template format */
     clientBufferLimitsConfig client_obuf_limits[CLIENT_TYPE_OBUF_COUNT];
     int pause_cron;                 /* Don't run cron tasks (debug) */
-    /* AOF persistence */
+    // aof 持久化
     int aof_enabled;                /* AOF configuration */
     int aof_state;                  // aof持久化开关 /* AOF_(ON|OFF|WAIT_REWRITE) */
     int aof_fsync;                  /* Kind of fsync() policy */

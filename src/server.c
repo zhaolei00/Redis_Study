@@ -3177,7 +3177,7 @@ void initServer(void) {
             server.syslog_facility);
     }
 
-    /* Initialization after setting defaults from the config system. */
+    // 在配置系统中设置默认值后进行初始化
     server.aof_state = server.aof_enabled ? AOF_ON : AOF_OFF;
     server.hz = server.config_hz;
     server.pid = getpid();
