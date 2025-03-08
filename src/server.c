@@ -3215,6 +3215,7 @@ void initServer(void) {
         exit(1);
     }
 
+    // 创建共享对象
     createSharedObjects();
     adjustOpenFilesLimit();
     const char *clk_msg = monotonicInit();
@@ -3222,9 +3223,7 @@ void initServer(void) {
     // 初始化eventLoop
     server.el = aeCreateEventLoop(server.maxclients+CONFIG_FDSET_INCR);
     if (server.el == NULL) {
-        serverLog(LL_WARNING,
-            "Failed creating the event loop. Error message: '%s'",
-            strerror(errno));
+        serverLog(LL_WARNING, "Failed creating the event loop. Error message: '%s'", strerror(errno));
         exit(1);
     }
     server.db = zmalloc(sizeof(redisDb)*server.dbnum);
