@@ -3506,7 +3506,7 @@ void processEventsWhileBlocked(void) {
 #define IO_THREADS_OP_READ 0
 #define IO_THREADS_OP_WRITE 1
 
-pthread_t io_threads[IO_THREADS_MAX_NUM];
+pthread_t io_threads[IO_THREADS_MAX_NUM]; // 保存io线程
 pthread_mutex_t io_threads_mutex[IO_THREADS_MAX_NUM];
 redisAtomic unsigned long io_threads_pending[IO_THREADS_MAX_NUM];
 int io_threads_op;      /* IO_THREADS_OP_WRITE or IO_THREADS_OP_READ. */

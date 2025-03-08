@@ -61,17 +61,12 @@
 #include "server.h"
 #include "bio.h"
 
-static pthread_t bio_threads[BIO_NUM_OPS];
+static pthread_t bio_threads[BIO_NUM_OPS]; // 保存后台线程
 static pthread_mutex_t bio_mutex[BIO_NUM_OPS];
 static pthread_cond_t bio_newjob_cond[BIO_NUM_OPS];
 static pthread_cond_t bio_step_cond[BIO_NUM_OPS];
-static list *bio_jobs[BIO_NUM_OPS];
-/* The following array is used to hold the number of pending jobs for every
- * OP type. This allows us to export the bioPendingJobsOfType() API that is
- * useful when the main thread wants to perform some operation that may involve
- * objects shared with the background thread. The main thread will just wait
- * that there are no longer jobs of this type to be executed before performing
- * the sensible operation. This data is also useful for reporting. */
+static list *bio_jobs[BIO_NUM_OPS]; // 后台线程个数
+// 以下数组用于保存每种OP类型的待处理作业数。
 static unsigned long long bio_pending[BIO_NUM_OPS];
 
 /* This structure represents a background Job. It is only used locally to this
@@ -90,14 +85,14 @@ void *bioProcessBackgroundJobs(void *arg);
  * main thread. */
 #define REDIS_THREAD_STACK_SIZE (1024*1024*4)
 
-/* Initialize the background system, spawning the thread. */
+// 初始化后台系统，生成线程。
 void bioInit(void) {
     pthread_attr_t attr;
     pthread_t thread;
     size_t stacksize;
     int j;
 
-    /* Initialization of state vars and objects */
+    // 初始化
     for (j = 0; j < BIO_NUM_OPS; j++) {
         pthread_mutex_init(&bio_mutex[j],NULL);
         pthread_cond_init(&bio_newjob_cond[j],NULL);
